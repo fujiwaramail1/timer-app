@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timer</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg: #0a0a0a; --surface: #111111; --border: #222222; --text: #f0f0f0; --muted: #555; --accent: #e8ff4d; --accent-dim: #b8cc2d; --danger: #ff4d4d; }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(232,255,77,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(232,255,77,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; }
+    .container { width: 420px; position: relative; z-index: 1; }
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .logo { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
+    .status-dot.running { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1s infinite; }
+    .status-dot.done { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .display { background: var(--surface); border: 1px solid var(--border); padding: 40px 32px; margin-bottom: 24px; position: relative; overflow: hidden; }
+    .display::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0; transition: opacity 0.3s; }
+    .display.running::after { opacity: 1; }
+    .time { font-family: 'Syne', sans-serif; font-size: 80px; font-weight: 800; letter-spacing: -2px; line-height: 1; color: var(--text); transition: color 0.3s; text-align: center; }
+    .time.warning { color: var(--danger); }
+    .time.done { color: var(--danger); animation: shake 0.5s ease; }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+    .progress-bar { margin-top: 24px; height: 2px; background: var(--border); overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); width: 100%; transform-origin: left; transition: transform 1s linear, background 0.3s; }
+    .progress-fill.warning { background: var(--danger); }
+    .progress-label { display: flex; justify-content: space-between; margin-top: 8px; font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+    .input-section { margin-bottom: 24px; }
+    .input-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .time-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .time-input-group { display: flex; flex-direction: column; gap: 4px; }
+    .time-input-group label { font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+    .time-input-group input { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 20px; padding: 10px 12px; width: 100%; text-align: center; outline: none; transition: border-color 0.2s; -moz-appearance: textfield; }
+    .time-input-group input::-webkit-outer-spin-button, .time-input-group input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .time-input-group input:focus { border-color: var(--accent); }
+    .time-input-group input:disabled { opacity: 0.3; cursor: not-allowed; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; padding: 14px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden; }
+    .btn::before { content: ''; position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform 0.15s; z-index: 0; }
+    .btn span { position: relative; z-index: 1; }
+    .btn:hover::before { transform: scaleX(1); }
+    .btn:hover { color: var(--bg); border-color: var(--accent); }
+    .btn.primary { grid-column: span 2; background: var(--accent); border-color: var(--accent); color: var(--bg); }
+    .btn.primary::before { background: var(--accent-dim); }
+    .btn.danger { border-color: var(--danger); }
+    .btn.danger::before { background: var(--danger); }
+    .presets { margin-top: 16px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .preset-btn { font-family: 'DM Mono', monospace; font-size: 10px; padding: 5px 10px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+    .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 9px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; text-align: center; }
+    .done-flash { position: fixed; inset: 0; background: var(--danger); opacity: 0; pointer-events: none; z-index: 100; }
+    .done-flash.active { animation: flash 0.6s ease; }
+    @keyframes flash { 0% { opacity: 0; } 30% { opacity: 0.15; } 100% { opacity: 0; } }
+  </style>
+</head>
+<body>
+<div class="done-flash" id="doneFlash"></div>
+<div class="container">
+  <div class="header"><div class="logo">Timer</div><div class="status-dot" id="statusDot"></div></div>
+  <div class="display" id="display">
+    <div class="time" id="timeDisplay">00:00:00</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label"><span id="elapsedLabel">0s elapsed</span><span id="remainLabel">-</span></div>
+  </div>
+  <div class="input-section">
+    <div class="input-label">Set time</div>
+    <div class="time-inputs">
+      <div class="time-input-group"><label>Hours</label><input type="number" id="inputH" min="0" max="99" value="0"></div>
+      <div class="time-input-group"><label>Min</label><input type="number" id="inputM" min="0" max="59" value="5"></div>
+      <div class="time-input-group"><label>Sec</label><input type="number" id="inputS" min="0" max="59" value="0"></div>
+    </div>
+    <div class="presets">
+      <button class="preset-btn" onclick="setPreset(1,0,0)">1h</button>
+      <button class="preset-btn" onclick="setPreset(0,30,0)">30m</button>
+      <button class="preset-btn" onclick="setPreset(0,15,0)">15m</button>
+      <button class="preset-btn" onclick="setPreset(0,10,0)">10m</button>
+      <button class="preset-btn" onclick="setPreset(0,5,0)">5m</button>
+      <button class="preset-btn" onclick="setPreset(0,3,0)">3m</button>
+      <button class="preset-btn" onclick="setPreset(0,1,0)">1m</button>
+      <button class="preset-btn" onclick="setPreset(0,0,30)">30s</button>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="btn primary" id="startBtn" onclick="toggleTimer()"><span id="startLabel">Start</span></button>
+    <button class="btn" onclick="resetTimer()"><span>Reset</span></button>
+    <button class="btn" onclick="addTime(60)"><span>+1 min</span></button>
+  </div>
+  <div class="footer">press space to start / stop</div>
+</div>
+<script>
+  let remaining=0,interval=null,running=false,startTotal=0;
+  const D=id=>document.getElementById(id);
+  const timeDisplay=D('timeDisplay'),startBtn=D('startBtn'),startLabel=D('startLabel'),statusDot=D('statusDot'),display=D('display'),progressFill=D('progressFill'),elapsedLabel=D('elapsedLabel'),remainLabel=D('remainLabel'),doneFlash=D('doneFlash');
+  const pad=n=>String(n).padStart(2,'0');
+  const fmt=s=>pad(Math.floor(s/3600))+':'+pad(Math.floor((s%3600)/60))+':'+pad(s%60);
+  function upd(){timeDisplay.textContent=fmt(remaining);elapsedLabel.textContent=(startTotal-remaining)+'s elapsed';remainLabel.textContent=remaining>0?remaining+'s left':'done';progressFill.style.transform='scaleX('+(startTotal>0?remaining/startTotal:1)+')';const w=remaining<=10&&remaining>0;timeDisplay.classList.toggle('warning',w);progressFill.classList.toggle('warning',w);}
+  function inp(){return(parseInt(D('inputH').value)||0)*3600+(parseInt(D('inputM').value)||0)*60+(parseInt(D('inputS').value)||0);}
+  function dis(v){['inputH','inputM','inputS'].forEach(id=>D(id).disabled=v);}
+  function toggle(){running?pause():start();}
+  function start(){if(running)return;if(remaining===0){const t=inp();if(!t)return;remaining=t;startTotal=t;}running=true;dis(true);startLabel.textContent='Pause';statusDot.className='status-dot running';display.classList.add('running');startBtn.classList.remove('danger');interval=setInterval(()=>{remaining--;upd();if(remaining<=0)done();},1000);upd();}
+  function pause(){running=false;clearInterval(interval);startLabel.textContent='Resume';statusDot.className='status-dot';display.classList.remove('running');}
+  function reset(){running=false;clearInterval(interval);remaining=0;startTotal=0;dis(false);startLabel.textContent='Start';statusDot.className='status-dot';display.classList.remove('running');timeDisplay.className='time';progressFill.style.transform='scaleX(1)';progressFill.classList.remove('warning');elapsedLabel.textContent='0s elapsed';remainLabel.textContent='-';timeDisplay.textContent='00:00:00';startBtn.classList.remove('danger');}
+  function done(){running=false;clearInterval(interval);remaining=0;startLabel.textContent='Start';statusDot.className='status-dot done';display.classList.remove('running');timeDisplay.className='time done';startBtn.classList.add('danger');dis(false);doneFlash.classList.remove('active');void doneFlash.offsetWidth;doneFlash.classList.add('active');try{const c=new(window.AudioContext||window.webkitAudioContext)();[0,200,400].forEach(d=>setTimeout(()=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;o.type='sine';g.gain.setValueAtTime(0.3,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.3);o.start(c.currentTime);o.stop(c.currentTime+0.3);},d));}catch(e){}}
+  function addTime(s){if(!remaining&&!running){remaining=inp()+s;startTotal=remaining;}else{remaining+=s;startTotal+=s;}upd();}
+  function setPreset(h,m,s){if(running)return;D('inputH').value=h;D('inputM').value=m;D('inputS').value=s;reset();}
+  window.toggleTimer=toggle;window.resetTimer=reset;window.addTime=addTime;window.setPreset=setPreset;
+  document.addEventListener('keydown',e=>{if(e.code==='Space'&&e.target.tagName!=='INPUT'){e.preventDefault();toggle();}});
+  upd();
+</script>
+</body>
+</html>
